@@ -1,0 +1,34 @@
+# Projet Xcode généré par XcodeGen (sur les Mac de GitHub Actions, voir .github/workflows/build.yml)
+name: DDMDepth
+options:
+  bundleIdPrefix: com.ddm
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  DDMDepth:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    scheme: {}
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: DDM Depth
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UIRequiredDeviceCapabilities: [arm64]
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSCameraUsageDescription: "Envoie l'image et la profondeur de la caméra avant au PC."
+        NSLocalNetworkUsageDescription: "Envoie l'image et la profondeur au PC sur le réseau local."
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ddm.depth
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""
