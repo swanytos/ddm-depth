@@ -1,0 +1,50 @@
+# Compile l'app sur un Mac de GitHub (gratuit pour un dépôt public) et fournit DDMDepth.ipa
+# non signée, à installer depuis Windows avec Sideloadly (identifiant Apple gratuit).
+name: build-ipa
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Compilation
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project DDMDepth.xcodeproj \
+            -scheme DDMDepth \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build | tee xcodebuild.log | grep -E "error:|warning: |BUILD" || true
+          test -d build/Build/Products/Release-iphoneos/DDMDepth.app
+
+      - name: Paquet .ipa
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/DDMDepth.app Payload/
+          zip -qry DDMDepth.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DDMDepth-ipa
+          path: DDMDepth.ipa
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journal-compilation
+          path: xcodebuild.log
