@@ -24,6 +24,8 @@ final class Camera: NSObject, ObservableObject, AVCaptureDataOutputSynchronizerD
     private let ciContext = CIContext()
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
     private var configured = false
+    private var device: AVCaptureDevice?
+    private var depthCandidates: [AVCaptureDevice.Format] = []
     private var quality: CGFloat = 0.7
     private var frameIndex: UInt32 = 0
     private var fpsCount = 0
@@ -36,7 +38,8 @@ final class Camera: NSObject, ObservableObject, AVCaptureDataOutputSynchronizerD
 
     // MARK: - Commandes (appelées depuis l'interface)
 
-    func start(filterDepth: Bool, jpegQuality: Double) {
+    /// smallDepth : profondeur 320x240 au lieu de 640x480 (4x moins de données sur le Wi-Fi).
+    func start(filterDepth: Bool, smallDepth: Bool, jpegQuality: Double) {
         queue.async {
             self.quality = CGFloat(jpegQuality)
             do {
@@ -44,6 +47,7 @@ final class Camera: NSObject, ObservableObject, AVCaptureDataOutputSynchronizerD
                     try self.configure()
                     self.configured = true
                 }
+                try self.selectDepthFormat(small: smallDepth)
                 self.depthOutput.isFilteringEnabled = filterDepth
                 self.session.startRunning()
                 self.publish(status: "En marche")
@@ -90,11 +94,11 @@ final class Camera: NSObject, ObservableObject, AVCaptureDataOutputSynchronizerD
         let float16 = depthFormats.filter {
             CMFormatDescriptionGetMediaSubType($0.formatDescription) == kCVPixelFormatType_DepthFloat16
         }
-        let candidates = float16.isEmpty ? depthFormats : float16
-        let depthFormat = candidates.max { a, b in
-            CMVideoFormatDescriptionGetDimensions(a.formatDescription).width
-                < CMVideoFormatDescriptionGetDimensions(b.formatDescription).width
+        depthCandidates = (float16.isEmpty ? depthFormats : float16).sorted {
+            CMVideoFormatDescriptionGetDimensions($0.formatDescription).width
+                < CMVideoFormatDescriptionGetDimensions($1.formatDescription).width
         }
+        self.device = device
 
         session.beginConfiguration()
         session.sessionPreset = .inputPriority
@@ -114,12 +118,24 @@ final class Camera: NSObject, ObservableObject, AVCaptureDataOutputSynchronizerD
 
         try device.lockForConfiguration()
         device.activeFormat = format
-        if let df = depthFormat { device.activeDepthDataFormat = df }
+        if let df = depthCandidates.last { device.activeDepthDataFormat = df }
         device.unlockForConfiguration()
         session.commitConfiguration()
 
         synchronizer = AVCaptureDataOutputSynchronizer(dataOutputs: [videoOutput, depthOutput])
         synchronizer?.setDelegate(self, queue: queue)
+    }
+
+    /// Choisit la plus petite (small) ou la plus grande profondeur Float16 disponible.
+    private func selectDepthFormat(small: Bool) throws {
+        guard let device = device,
+              let df = small ? depthCandidates.first : depthCandidates.last,
+              device.activeDepthDataFormat != df else { return }
+        session.beginConfiguration()
+        try device.lockForConfiguration()
+        device.activeDepthDataFormat = df
+        device.unlockForConfiguration()
+        session.commitConfiguration()
     }
 
     // MARK: - Images

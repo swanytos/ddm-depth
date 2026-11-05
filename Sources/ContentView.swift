@@ -9,6 +9,7 @@ struct ContentView: View {
     @AppStorage("port") private var port = "9999"
     @AppStorage("quality") private var quality = 0.7
     @AppStorage("filter") private var filterDepth = true
+    @AppStorage("smallDepth") private var smallDepth = true
     @AppStorage("preview") private var showPreview = true
     @State private var running = false
 
@@ -39,6 +40,7 @@ struct ContentView: View {
                 .disabled(running)
 
                 Toggle("Profondeur lissée (trous bouchés)", isOn: $filterDepth).disabled(running)
+                Toggle("Profondeur 320×240 (plus rapide en Wi-Fi)", isOn: $smallDepth).disabled(running)
                 Toggle("Aperçu à l'écran", isOn: $showPreview)
                 VStack(alignment: .leading) {
                     Text("Qualité JPEG : \(Int(quality * 100)) %")
@@ -84,7 +86,7 @@ struct ContentView: View {
             UIApplication.shared.isIdleTimerDisabled = false
         } else {
             sender.start(host: host.trimmingCharacters(in: .whitespaces), port: UInt16(port) ?? 9999)
-            camera.start(filterDepth: filterDepth, jpegQuality: quality)
+            camera.start(filterDepth: filterDepth, smallDepth: smallDepth, jpegQuality: quality)
             UIApplication.shared.isIdleTimerDisabled = true
         }
         running.toggle()
