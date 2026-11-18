@@ -165,7 +165,12 @@ final class Camera: NSObject, ObservableObject, AVCaptureDataOutputSynchronizerD
         let rgbH = CVPixelBufferGetHeight(pixels)
         let dW = CVPixelBufferGetWidth(depthMap)
         let dH = CVPixelBufferGetHeight(depthMap)
-        let depthBytes = copyDepth(depthMap, width: dW, height: dH)
+        let rawDepth = copyDepth(depthMap, width: dW, height: dH)
+        // profondeur compressée (deflate brut) : ~2-3x moins de données sur le Wi-Fi ; le PC la reconnaît à sa taille
+        var depthBytes = rawDepth
+        if let packed = try? (rawDepth as NSData).compressed(using: .zlib) {
+            depthBytes = packed as Data
+        }
 
         var fx: Float = 0, fy: Float = 0, cx: Float = 0, cy: Float = 0
         if let cal = depth.cameraCalibrationData {

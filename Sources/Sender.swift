@@ -1,8 +1,8 @@
 import Foundation
 import Network
 
-/// Client TCP vers le PC. Une seule image en vol : si l'envoi précédent n'est pas fini,
-/// la caméra saute l'image au lieu de l'empiler (pas de retard qui s'accumule).
+/// Client TCP vers le PC. Au plus maxInFlight images en vol : au-delà, la caméra saute l'image
+/// au lieu de l'empiler (pas de retard qui s'accumule). 2 = le Wi-Fi ne reste jamais à vide.
 /// Reconnexion automatique toutes les secondes si le PC n'écoute pas encore.
 final class Sender: ObservableObject {
     @Published var state = "Arrêté"
@@ -13,7 +13,8 @@ final class Sender: ObservableObject {
     private let lock = NSLock()
     private var connection: NWConnection?
     private var connected = false
-    private var inFlight = false
+    private var inFlight = 0
+    var maxInFlight = 2
     private var running = false
     private var host = ""
     private var port: UInt16 = 9999
@@ -44,12 +45,12 @@ final class Sender: ObservableObject {
     func canSend() -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        return connected && !inFlight
+        return connected && inFlight < maxInFlight
     }
 
     func send(_ data: Data) {
         lock.lock()
-        inFlight = true
+        inFlight += 1
         lock.unlock()
         queue.async {
             guard let c = self.connection else {
@@ -116,13 +117,13 @@ final class Sender: ObservableObject {
     private func setConnected(_ value: Bool) {
         lock.lock()
         connected = value
-        if !value { inFlight = false }
+        if !value { inFlight = 0 }
         lock.unlock()
     }
 
     private func finishSend() {
         lock.lock()
-        inFlight = false
+        inFlight = max(0, inFlight - 1)
         lock.unlock()
     }
 
